@@ -1,0 +1,36 @@
+@import "~antd/dist/reset.css";
+
+@font-face {
+  font-family: "RussoOne-Regular";
+  src: url("/fonts/RussoOne-Regular.ttf");
+}
+
+@font-face {
+  font-family: "LINESeedKR-Bd";
+  src: url("/fonts/LINESeedKR-Bd.otf");
+}
+
+@font-face {
+  font-family: "LINESeedKR-Rg";
+  src: url("/fonts/LINESeedKR-Rg.otf");
+}
+
+@font-face {
+  font-family: "LINESeedKR-Th";
+  src: url("/fonts/LINESeedKR-Th.otf");
+}
+
+@font-face {
+  font-family: "establish";
+  src: url("/fonts/establish Retrosans OTF.otf");
+}
+
+body {
+  margin: 0;
+  background-color: "#5C8374";
+}
+
+.titlebar {
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+}
