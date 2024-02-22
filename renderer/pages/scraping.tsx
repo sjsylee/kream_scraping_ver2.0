@@ -10,6 +10,7 @@ import {
   FileExcelTwoTone,
   GiftFilled,
   CheckCircleTwoTone,
+  GiftOutlined,
 } from "@ant-design/icons";
 import {
   Button,
@@ -25,6 +26,8 @@ import {
   Select,
   Progress,
   Statistic,
+  Input,
+  Switch,
 } from "antd";
 import { fetchJson } from "../lib/api";
 import { useState } from "react";
@@ -45,6 +48,8 @@ export default function NextPage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [token, setToken] = useState<string>();
   const [profile, setProfile] = useState();
+  const [isURL, setIsURL] = useState(true);
+  const [url, setUrl] = useState<string>();
   const [firstDat, setFirstDat] = useState<any[]>([]);
   const [isActive, setIsActive] = useState<boolean>(false);
   const [finalDat, setFinalDat] = useState<any[]>([]);
@@ -81,7 +86,7 @@ export default function NextPage() {
       </Row>
 
       <Divider />
-      <Row style={{ marginBottom: "10px" }} gutter={4} align={"middle"}>
+      <Row style={{ marginBottom: "20px" }} gutter={4} align={"middle"}>
         <Col>
           <AlertTwoTone twoToneColor="#2666CF" />
         </Col>
@@ -92,9 +97,27 @@ export default function NextPage() {
           </Text>
         </Col>
       </Row>
+      <Row align={"middle"} gutter={12} style={{ marginBottom: "15px" }}>
+        <Col>
+          <Switch onChange={(bool) => setIsURL(bool)} defaultChecked />
+        </Col>
+        <Col>
+          <Input
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value as any);
+            }}
+            disabled={!isURL}
+            prefix={<GiftOutlined />}
+            style={{ width: "452px" }}
+            placeholder="상품을 검색한 URL을 입력해주세요."
+          ></Input>
+        </Col>
+      </Row>
       <Row align={"middle"} gutter={8}>
         <Col>
           <Select
+            disabled={isURL}
             defaultValue="popularity_without_trading"
             onChange={(value) => {
               setSearchOpt(value);
@@ -171,51 +194,125 @@ export default function NextPage() {
               setFirstProg(0);
               setSecondProg(0);
 
-              let f_r = await fetchJson("/api/get_first_data", {
-                method: "POST",
-                body: JSON.stringify({
-                  token: c_token,
-                  page_num: pageNum,
-                  search_type: searchOpt,
-                }),
-              });
-
-              if (f_r.data === "ECONNRESET") {
-                messageApi.error({
-                  content: "요청 재시도...",
-                  icon: <LoadingOutlined twoToneColor="#2185D5" />,
-                  style: { color: "#45474B" },
-                });
-              } else {
-                if (f_r.data === "logout") {
+              if (isURL) {
+                if (!url) {
                   messageApi.error({
-                    content: "자동 재로그인을 진행합니다...",
+                    content: "URL을 입력해주세요!",
+                    icon: <WarningTwoTone twoToneColor="#C70039" />,
+                    style: { color: "#45474B" },
+                  });
+                  setIsActive(false);
+                  return;
+                }
+                let kwd: string;
+                try {
+                  let par = url.split("?")[1];
+                  let kwd_p = par
+                    .split("&")
+                    .filter((d) => d.includes("keyword"))[0];
+
+                  kwd = kwd_p.split("=")[1];
+                  console.log(kwd);
+                } catch {
+                  messageApi.error({
+                    content: "가져올 수 없는 URL입니다!",
+                    icon: <WarningTwoTone twoToneColor="#C70039" />,
+                    style: { color: "#45474B" },
+                  });
+                  setIsActive(false);
+                  return;
+                }
+
+                let f_r = await fetchJson("/api/get_first_data_with_kwd", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    token: c_token,
+                    page_num: pageNum,
+                    kwd: kwd,
+                  }),
+                });
+
+                if (f_r.data === "ECONNRESET") {
+                  messageApi.error({
+                    content: "요청 재시도...",
                     icon: <LoadingOutlined twoToneColor="#2185D5" />,
                     style: { color: "#45474B" },
                   });
-                  const new_token = await fetchJson("/api/kream_login", {
-                    method: "POST",
-                    body: JSON.stringify(profile),
-                  });
-                  c_token = new_token.data;
-                  localStorage.setItem(`token`, c_token);
+                } else {
+                  if (f_r.data === "logout") {
+                    messageApi.error({
+                      content: "자동 재로그인을 진행합니다...",
+                      icon: <LoadingOutlined twoToneColor="#2185D5" />,
+                      style: { color: "#45474B" },
+                    });
+                    const new_token = await fetchJson("/api/kream_login", {
+                      method: "POST",
+                      body: JSON.stringify(profile),
+                    });
+                    c_token = new_token.data;
+                    localStorage.setItem(`token`, c_token);
 
-                  f_r = await fetchJson("/api/get_first_data", {
-                    method: "POST",
-                    body: JSON.stringify({
-                      token: c_token,
-                      page_num: pageNum,
-                      search_type: searchOpt,
-                    }),
+                    f_r = await fetchJson("/api/get_first_data", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        token: c_token,
+                        page_num: pageNum,
+                        search_type: searchOpt,
+                      }),
+                    });
+                  }
+
+                  first_total.push(...JSON.parse(f_r.data));
+                  setFirstProg((prev) => (prev += 100 / 1));
+                  // 루프 종료
+                }
+              } else {
+                let f_r = await fetchJson("/api/get_first_data", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    token: c_token,
+                    page_num: pageNum,
+                    search_type: searchOpt,
+                  }),
+                });
+
+                if (f_r.data === "ECONNRESET") {
+                  messageApi.error({
+                    content: "요청 재시도...",
+                    icon: <LoadingOutlined twoToneColor="#2185D5" />,
+                    style: { color: "#45474B" },
                   });
+                } else {
+                  if (f_r.data === "logout") {
+                    messageApi.error({
+                      content: "자동 재로그인을 진행합니다...",
+                      icon: <LoadingOutlined twoToneColor="#2185D5" />,
+                      style: { color: "#45474B" },
+                    });
+                    const new_token = await fetchJson("/api/kream_login", {
+                      method: "POST",
+                      body: JSON.stringify(profile),
+                    });
+                    c_token = new_token.data;
+                    localStorage.setItem(`token`, c_token);
+
+                    f_r = await fetchJson("/api/get_first_data", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        token: c_token,
+                        page_num: pageNum,
+                        search_type: searchOpt,
+                      }),
+                    });
+                  }
+
+                  first_total.push(...JSON.parse(f_r.data));
+                  setFirstProg((prev) => (prev += 100 / 1));
+                  // 루프 종료
                 }
 
-                first_total.push(...JSON.parse(f_r.data));
-                setFirstProg((prev) => (prev += 100 / pageNum));
-                // 루프 종료
+                setFirstDat([...first_total]);
               }
-
-              setFirstDat([...first_total]);
 
               messageApi.success({
                 content: `1차 수집 완료!`,
@@ -225,8 +322,12 @@ export default function NextPage() {
 
               // 2차 최종 요청
 
+              console.log(first_total);
+
+              let f_t = first_total;
+
               let t_n = 0;
-              for (let dat of first_total) {
+              for (let dat of f_t) {
                 let is_go_2 = true;
                 t_n += 1;
 
@@ -276,10 +377,12 @@ export default function NextPage() {
                         final_total.push({
                           ...dat,
                           사이즈: d["사이즈"],
-                          평균가_30개: d["평균가_30개"],
-                          평균가_50개: d["평균가_50개"],
-                          "수집범위/날짜범위_30개": d["수집범위/날짜범위_30개"],
-                          "수집범위/날짜범위_50개": d["수집범위/날짜범위_50개"],
+                          일판평균가_5개: d["일판평균가_5개"],
+                          보판평균가_5개: d["보판평균가_5개"],
+                          일판평균가_10개: d["일판평균가_10개"],
+                          보판평균가_10개: d["보판평균가_10개"],
+                          "수집범위/날짜범위_10개": "",
+                          "수집범위/날짜범위_50개": "",
                           최저_보판가: d["최저_보판가"],
                           최저_95점_보판가: d["최저_95점_보판가"],
                           최저_일판가: d["최저_일판가"],
@@ -294,9 +397,12 @@ export default function NextPage() {
                             모델명: "",
                             컬러: "",
                             사이즈: "",
-                            평균가_30개: "",
-                            평균가_50개: "",
-                            "수집범위/날짜범위_30개": "",
+                            발매가: "",
+                            일판평균가_5개: "",
+                            보판평균가_5개: "",
+                            일판평균가_10개: "",
+                            보판평균가_10개: "",
+                            "수집범위/날짜범위_10개": "",
                             "수집범위/날짜범위_50개": "",
                             최저_보판가: "",
                             최저_95점_보판가: "",
@@ -312,9 +418,12 @@ export default function NextPage() {
                           모델명: "",
                           컬러: "",
                           사이즈: d["사이즈"],
-                          평균가_30개: d["평균가_30개"],
-                          평균가_50개: d["평균가_50개"],
-                          "수집범위/날짜범위_30개": d["수집범위/날짜범위_30개"],
+                          발매가: d["발매가"],
+                          일판평균가_5개: d["일판평균가_5개"],
+                          보판평균가_5개: d["보판평균가_5개"],
+                          일판평균가_10개: d["일판평균가_10개"],
+                          보판평균가_10개: d["보판평균가_10개"],
+                          "수집범위/날짜범위_10개": d["수집범위/날짜범위_10개"],
                           "수집범위/날짜범위_50개": d["수집범위/날짜범위_50개"],
                           최저_보판가: d["최저_보판가"],
                           최저_95점_보판가: d["최저_95점_보판가"],
@@ -330,9 +439,12 @@ export default function NextPage() {
                             모델명: "",
                             컬러: "",
                             사이즈: "",
-                            평균가_30개: "",
-                            평균가_50개: "",
-                            "수집범위/날짜범위_30개": "",
+                            발매가: "",
+                            일판평균가_5개: "",
+                            보판평균가_5개: "",
+                            일판평균가_10개: "",
+                            보판평균가_10개: "",
+                            "수집범위/날짜범위_10개": "",
                             "수집범위/날짜범위_50개": "",
                             최저_보판가: "",
                             최저_95점_보판가: "",
@@ -343,12 +455,12 @@ export default function NextPage() {
                       }
                     });
 
-                    setSecondProg((prev) => (prev += 100 / first_total.length));
+                    setSecondProg((prev) => (prev += 100 / f_t.length));
 
                     await sleep(1500);
 
                     if (t_n % 500 === 0) {
-                      if (t_n === first_total.length) {
+                      if (t_n === f_t.length) {
                       } else {
                         setStatusLabel(
                           "IP 차단 방지를 위해 3분간 정지합니다..."

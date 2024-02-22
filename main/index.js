@@ -25,7 +25,7 @@ electron_1.app.on("ready", async () => {
     const mainWindow = new electron_1.BrowserWindow({
         titleBarStyle: "hidden",
         width: 985,
-        height: 720,
+        height: 820,
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: false,

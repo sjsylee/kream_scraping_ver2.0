@@ -155,9 +155,18 @@ export async function get_first_data(
 
   const t_url = `https://kream.co.kr/api/p/tabs/all`;
 
-  const params = {
+  let params: any = {
     request_key: r_q,
+    cursor: page_num,
+    sort: search_type,
   };
+
+  if (search_type === "popularity_without_trading") {
+    params = {
+      request_key: r_q,
+      cursor: page_num,
+    };
+  }
 
   const f_result = await axios.get(t_url, {
     params: params,
@@ -170,24 +179,85 @@ export async function get_first_data(
       Authorization: `Bearer ${token}`,
     },
   });
-  console.log(f_result);
 
   const f_items = f_result.data["items"];
 
   const f_r_d = f_items.map((d) => {
     const prd_d = d["product"];
-
     try {
       return {
-        상품명: prd_d["release"]["translated_name"],
         상품번호: prd_d["release"]["id"],
+        상품명: prd_d["release"]["translated_name"],
+        컬러: prd_d["release"]["colorway"],
         링크: `https://kream.co.kr/products/${prd_d["release"]["id"]}`,
         모델명: prd_d["release"]["style_code"],
-        컬러: prd_d["release"]["colorway"],
         사이즈: "",
-        평균가_30개: "",
-        평균가_50개: "",
-        "수집범위/날짜범위_30개": "",
+        발매가: prd_d["release"]["original_price_with_currency"],
+        일판평균가_5개: "",
+        보판평균가_5개: "",
+        일판평균가_10개: "",
+        보판평균가_10개: "",
+        "수집범위/날짜범위_10개": "",
+        "수집범위/날짜범위_50개": "",
+        최저_보판가: "",
+        최저_95점_보판가: "",
+        최저_일판가: "",
+        즉시_판매가: "",
+      };
+    } catch {
+      return null;
+    }
+  });
+  return f_r_d.filter((d) => d !== null);
+}
+
+export async function get_first_data_with_kwd(
+  token: string,
+  page_num: number,
+  kwd: string
+) {
+  const r_q = await get_new_rq_key();
+  const kream_api_headers = kream_api();
+
+  const t_url = `https://kream.co.kr/api/se/products/?keyword=${kwd}&request_key=${r_q}&tab=products&cursor=${page_num}`;
+
+  // const params: any = {
+  //   request_key: r_q,
+  //   cursor: page_num,
+  //   tab: "products",
+  //   keyword: kwd,
+  // };
+
+  const f_result = await axios.get(t_url, {
+    // params: params,
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
+      "Content-Type": `application/json`,
+      ...kream_api_headers,
+      Referer: "https://kream.co.kr/search",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const f_items = f_result.data["items"];
+
+  const f_r_d = f_items.map((d) => {
+    const prd_d = d["product"];
+    try {
+      return {
+        상품번호: prd_d["release"]["id"],
+        상품명: prd_d["release"]["translated_name"],
+        컬러: prd_d["release"]["colorway"],
+        링크: `https://kream.co.kr/products/${prd_d["release"]["id"]}`,
+        모델명: prd_d["release"]["style_code"],
+        사이즈: "",
+        발매가: prd_d["release"]["original_price_with_currency"],
+        일판평균가_5개: "",
+        보판평균가_5개: "",
+        일판평균가_10개: "",
+        보판평균가_10개: "",
+        "수집범위/날짜범위_10개": "",
         "수집범위/날짜범위_50개": "",
         최저_보판가: "",
         최저_95점_보판가: "",
@@ -237,9 +307,13 @@ export async function get_final_data(token: string, product_id: string) {
 
     const today = new Date();
 
-    let mean30: number | null;
-    let mean50: number | null;
-    let numDate30: number | null;
+    let mean5N: number | null;
+    let mean5B: number | null;
+
+    let mean10N: number | null;
+    let mean10B: number | null;
+
+    let numDate10: number | null;
     let numDate50: number | null;
 
     if (extra_dat.length === 0) {
@@ -252,27 +326,63 @@ export async function get_final_data(token: string, product_id: string) {
       ) > 30
     ) {
     } else {
-      if (extra_dat.length >= 30) {
-        const prices_30 = extra_dat.filter((d, i) => i < 30);
-        mean30 = Math.round(
-          prices_30.reduce((total, next) => total + next["price"], 0) /
-            prices_30.length
+      if (extra_dat.length >= 5) {
+        const prices_5_N = extra_dat.filter(
+          (d, i) => i < 5 && !d["is_immediate_delivery_item"]
         );
-        const diff_30 = Math.ceil(
+
+        if (prices_5_N.length > 0) {
+          mean5N = Math.round(
+            prices_5_N.reduce((total, next) => total + next["price"], 0) /
+              prices_5_N.length
+          );
+        }
+
+        const prices_5_B = extra_dat.filter(
+          (d, i) => i < 10 && d["is_immediate_delivery_item"]
+        );
+
+        if (prices_5_B.length > 0) {
+          mean5B = Math.round(
+            prices_5_B.reduce((total, next) => total + next["price"], 0) /
+              prices_5_B.length
+          );
+        }
+      }
+
+      if (extra_dat.length >= 10) {
+        const prices_10_N = extra_dat.filter(
+          (d, i) => i < 10 && !d["is_immediate_delivery_item"]
+        );
+
+        if (prices_10_N.length > 0) {
+          mean10N = Math.round(
+            prices_10_N.reduce((total, next) => total + next["price"], 0) /
+              prices_10_N.length
+          );
+        }
+
+        const prices_10_B = extra_dat.filter(
+          (d, i) => i < 10 && d["is_immediate_delivery_item"]
+        );
+
+        if (prices_10_B.length > 0) {
+          mean10B = Math.round(
+            prices_10_B.reduce((total, next) => total + next["price"], 0) /
+              prices_10_B.length
+          );
+        }
+
+        const diff_10 = Math.ceil(
           Math.abs(
-            (today as any) - (new Date(extra_dat[29]["date_created"]) as any)
+            (today as any) - (new Date(extra_dat[9]["date_created"]) as any)
           ) /
             (1000 * 60 * 60 * 24)
         );
-        numDate30 = 30 / diff_30;
+        numDate10 = 30 / diff_10;
       }
 
-      if (extra_dat.length >= 70) {
-        const prices_70 = extra_dat.filter((d, i) => i < 50);
-        mean50 = Math.round(
-          prices_70.reduce((total, next) => total + next["price"], 0) /
-            prices_70.length
-        );
+      if (extra_dat.length >= 50) {
         const diff_50 = Math.ceil(
           Math.abs(
             (today as any) - (new Date(extra_dat[49]["date_created"]) as any)
@@ -285,10 +395,12 @@ export async function get_final_data(token: string, product_id: string) {
 
     return_data.push({
       사이즈: d["option"],
-      평균가_30개: mean30,
-      평균가_50개: mean50,
-      "수집범위/날짜범위_30개": numDate30,
-      "수집범위/날짜범위_50개": numDate50,
+      일판평균가_5개: Math.round(mean5N / 1000) * 1000,
+      보판평균가_5개: Math.round(mean5B / 1000) * 1000,
+      일판평균가_10개: Math.round(mean10N / 1000) * 1000,
+      보판평균가_10개: Math.round(mean10B / 1000) * 1000,
+      "수집범위/날짜범위_10개": Math.round(numDate10 * 10) / 10,
+      "수집범위/날짜범위_50개": Math.round(numDate50 * 10) / 10,
       최저_보판가: d["lowest_100"],
       최저_95점_보판가: d["lowest_95"],
       최저_일판가: d["lowest_normal"],

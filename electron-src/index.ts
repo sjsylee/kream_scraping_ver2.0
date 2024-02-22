@@ -26,7 +26,7 @@ app.on("ready", async () => {
   const mainWindow = new BrowserWindow({
     titleBarStyle: "hidden",
     width: 985,
-    height: 720,
+    height: 820,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: false,
